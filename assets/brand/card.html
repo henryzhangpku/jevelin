@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=block">
+<style>
+  html, body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; }
+  body {
+    background: #111418;
+    color: #ffffff;
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    box-sizing: border-box;
+    padding: 6.2vh 5.4vw;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap: 0 4vw;
+  }
+  .brand { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; }
+  .brand .url { margin-left: auto; font-family: "IBM Plex Mono", monospace; font-size: 20px; }
+  .brand svg { width: 58px; height: 58px; }
+  .word { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 44px; letter-spacing: -0.02em; }
+  .word span { color: #3987e5; }
+  .copy { align-self: center; }
+  h1 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 76px; line-height: 1.02; letter-spacing: -0.025em; margin: 0; }
+  p { font-size: 27px; line-height: 1.4; color: #c3c2b7; margin: 22px 0 0; max-width: 30ch; }
+  p b { color: #fff; font-weight: 500; }
+  .chart { align-self: center; }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .foot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: flex-end;
+          font-family: "IBM Plex Mono", monospace; font-size: 22px; color: #c3c2b7; }
+  .stats { display: flex; gap: 14px; }
+  .stat { border: 1.5px solid #2f2f2c; border-radius: 99px; padding: 8px 18px; white-space: nowrap; }
+  .stat b { color: #fff; font-weight: 500; }
+  .url { color: #8f8e86; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1d232b"/>
+      <path d="M14 50 L41 23" stroke="#3987e5" stroke-width="6.5" stroke-linecap="round"/>
+      <path d="M53 11 L49.6 28 L36 14.4 Z" fill="#3987e5" stroke="#3987e5" stroke-width="2" stroke-linejoin="round"/></svg>
+    <div class="word">jev<span>elin</span></div>
+    <span class="url">github.com/henryzhangpku/jevelin</span>
+  </div>
+
+  <div class="copy">
+    <h1>Fast, low-cost real-time agents.</h1>
+    <p>Small decisions <b>off the critical path</b>, with a System One classifier like <b>Jev</b>.</p>
+  </div>
+
+  <div class="chart">
+    <!-- stylised version of the demo's time-to-first-audio curves -->
+    <svg viewBox="0 0 400 300">
+      <g stroke="#262624" stroke-width="1.5">
+        <line x1="20" y1="40" x2="390" y2="40"/><line x1="20" y1="130" x2="390" y2="130"/>
+        <line x1="20" y1="220" x2="390" y2="220"/><line x1="20" y1="270" x2="390" y2="270"/>
+      </g>
+      <line x1="118" y1="26" x2="118" y2="270" stroke="#8f8e86" stroke-width="1.5" stroke-dasharray="5 5"/>
+      <path d="M 52 270 C 70 268, 76 250, 84 200 S 100 90, 128 62 S 170 42, 230 40" fill="none" stroke="#3987e5" stroke-width="5" stroke-linecap="round"/>
+      <path d="M 120 270 C 170 266, 196 248, 214 200 S 250 90, 290 62 S 340 42, 388 40" fill="none" stroke="#d95926" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="96" cy="130" r="9" fill="#3987e5" stroke="#111418" stroke-width="4"/>
+      <circle cx="232" cy="130" r="9" fill="#d95926" stroke="#111418" stroke-width="4"/>
+      <text x="124" y="20" font-family="IBM Plex Mono, monospace" font-size="16" fill="#8f8e86">budget</text>
+    </svg>
+  </div>
+
+  <div class="foot">
+    <div class="stats">
+      <span class="stat">first audio <b>1.7 s → 0.6 s</b></span>
+      <span class="stat">model cost <b>12× lower</b></span>
+      <span class="stat">simulated</span>
+    </div>
+  </div>
+</body>
+</html>

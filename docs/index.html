@@ -8,6 +8,16 @@
 <meta property="og:title" content="jevelin: fast, low-cost real-time agents">
 <meta property="og:description" content="Take an agent's small decisions off the critical path. Move the sliders; the Python engine runs in your browser.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://henryzhangpku.github.io/jevelin/">
+<meta property="og:image" content="https://henryzhangpku.github.io/jevelin/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="jevelin: fast, low-cost real-time agents. Time to first audio 1.7 s to 0.6 s, model cost 12 times lower, simulated.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#111418">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -89,7 +99,8 @@ a { color: var(--s1); text-underline-offset: 3px; }
 
 /* header */
 .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.wordmark { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; }
+.wordmark { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; display: inline-flex; align-items: center; gap: 10px; }
+.wordmark img { width: 30px; height: 30px; display: block; }
 .wordmark span { color: var(--s1); }
 .toplinks { display: flex; gap: 18px; font-size: 14px; }
 h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.08; }
@@ -231,7 +242,7 @@ footer { font-size: 13px; color: var(--ink-3); display: flex; flex-wrap: wrap; g
 
   <header>
     <div class="top">
-      <div class="wordmark">jev<span>elin</span></div>
+      <div class="wordmark"><img src="favicon.svg" alt="" width="30" height="30">jev<span>elin</span></div>
       <nav class="toplinks">
         <a href="https://github.com/henryzhangpku/jevelin">GitHub</a>
         <a href="#how">How it works</a>
