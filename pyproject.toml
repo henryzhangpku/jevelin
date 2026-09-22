@@ -1,0 +1,21 @@
+[project]
+name = "jevelin"
+version = "0.1.0"
+description = "Fast, low-cost real-time agents: a System One classifier off the critical path."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+jev = ["typesafe-sdk>=0.7"]
+
+[project.scripts]
+jevelin = "jevelin.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["jevelin"]

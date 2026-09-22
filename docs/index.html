@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>jevelin</title>
+<meta name="description" content="Fast, low-cost real-time agents: take an agent's small decisions off the critical path with a System One classifier. Interactive simulation running in your browser.">
+<meta property="og:title" content="jevelin: fast, low-cost real-time agents">
+<meta property="og:description" content="Take an agent's small decisions off the critical path. Move the sliders; the Python engine runs in your browser.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --ground: #f4f4f1;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #7a7974;
+  --rule: #e2e1dc;
+  --grid: #ecebe7;
+  --s1: #2a78d6;        /* fast path, classifier */
+  --s2: #eb6834;        /* baseline, LLM */
+  --s3: #1baf7a;        /* speech out */
+  --bar-neutral: #d9d8d3;
+  --bar-policy: #8d8c86;
+  --focus: #2a78d6;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #121211;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-3: #8f8e86;
+    --rule: #2f2f2c;
+    --grid: #262624;
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --bar-neutral: #3a3a37;
+    --bar-policy: #77766f;
+    --focus: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #121211;
+  --surface: #1a1a19;
+  --surface-2: #232321;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --ink-3: #8f8e86;
+  --rule: #2f2f2c;
+  --grid: #262624;
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --bar-neutral: #3a3a37;
+  --bar-policy: #77766f;
+  --focus: #3987e5;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  padding-inline: 20px;
+  padding-block: calc(36px + env(safe-area-inset-top, 0px)) calc(64px + env(safe-area-inset-bottom, 0px));
+}
+.wrap { max-width: 1080px; margin-inline: auto; display: flex; flex-direction: column; gap: 28px; }
+a { color: var(--s1); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.mono { font-family: var(--mono); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* header */
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.wordmark { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; }
+.wordmark span { color: var(--s1); }
+.toplinks { display: flex; gap: 18px; font-size: 14px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.08; }
+h1 { font-size: clamp(36px, 6.4vw, 64px); font-weight: 800; letter-spacing: -0.025em; max-width: 16ch; }
+h2 { font-size: clamp(24px, 3.4vw, 32px); font-weight: 700; letter-spacing: -0.015em; }
+h3 { font-size: 15px; font-weight: 700; letter-spacing: 0; }
+.lede { font-size: 18px; color: var(--ink-2); max-width: 64ch; margin: 14px 0 0; }
+.lede b { color: var(--ink); font-weight: 600; }
+.status {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 18px;
+  font-family: var(--mono); font-size: 12.5px; color: var(--ink-2);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 99px; padding: 6px 14px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.status[data-state="busy"] .dot { background: var(--s2); animation: pulse 1s ease-in-out infinite; }
+.status[data-state="ok"] .dot { background: var(--s3); }
+.status[data-state="error"] .dot { background: #d03b3b; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+/* panels */
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; }
+.eyebrow { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 12px; }
+
+/* controls */
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px 28px; }
+.group { display: flex; flex-direction: column; gap: 14px; }
+.group h3 { color: var(--ink-2); font-family: var(--mono); font-size: 11.5px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+.slider { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
+.slider label { font-size: 14px; }
+.slider output { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.slider small { grid-column: 1 / -1; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); min-height: 1em; }
+.slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--s1); margin: 4px 0 0; }
+.controls-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 14px; }
+select, button {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--surface-2);
+  border: 1px solid var(--rule); border-radius: 7px; padding: 6px 10px;
+}
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--ink-3); }
+button:disabled { opacity: 0.45; cursor: default; }
+
+/* tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+.tile .label { font-size: 13.5px; color: var(--ink-2); }
+.tile .pair { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.tile .big { font-family: var(--display); font-weight: 800; font-size: 40px; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile .vs { font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
+.tile .delta { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.key.fast { background: var(--s1); }
+.key.base { background: var(--s2); }
+
+/* results */
+.results { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .results { grid-template-columns: 1fr; } }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.caption { font-size: 13px; color: var(--ink-3); margin: 8px 0 0; }
+.tip {
+  position: absolute; pointer-events: none; z-index: 5; min-width: 150px; max-width: 260px;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 8px 10px; font-size: 12.5px; line-height: 1.4;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.tip b { font-weight: 600; }
+.tip .row { display: flex; justify-content: space-between; gap: 12px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 7px 8px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+td { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+td:first-child { font-family: var(--sans); font-size: 13.5px; }
+td.sub { padding-left: 18px; color: var(--ink-2); }
+th { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+tr:last-child td { border-bottom: 0; }
+
+/* timeline */
+.pickers { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.chips button { border-radius: 99px; font-size: 13px; padding: 4px 12px; background: var(--surface); }
+.chips button[aria-pressed="true"] { border-color: var(--s1); color: var(--s1); }
+.utter { margin: 16px 0 0; font-size: 18px; max-width: 70ch; }
+.utter q { font-style: italic; }
+.badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.badge { font-family: var(--mono); font-size: 11.5px; border: 1px solid var(--rule); border-radius: 99px; padding: 1px 9px; color: var(--ink-2); }
+.lanes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 16px; }
+.lane, .panel, .tile { min-width: 0; }
+.lane h3 { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 16px; }
+.lane .outcome { font-family: var(--mono); font-size: 12.5px; font-weight: 400; color: var(--ink-2); }
+.scroll { overflow-x: auto; }
+.scroll svg { min-width: 620px; }
+
+/* svg paint */
+.g-grid { stroke: var(--grid); stroke-width: 1; }
+.g-axis { fill: var(--ink-3); font-family: var(--mono); font-size: 11px; }
+.g-zero { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 3 3; }
+.g-budget { stroke: var(--ink-2); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.g-lab { fill: var(--ink-2); font-family: var(--mono); font-size: 11px; }
+.g-lab-strong { fill: var(--ink); font-family: var(--mono); font-size: 11.5px; font-weight: 500; }
+.g-row { fill: var(--ink); font-family: var(--sans); font-size: 12.5px; }
+.l-fast { stroke: var(--s1); stroke-width: 2; fill: none; }
+.l-base { stroke: var(--s2); stroke-width: 2; fill: none; }
+.d-fast { fill: var(--s1); stroke: var(--surface); stroke-width: 2; }
+.d-base { fill: var(--s2); stroke: var(--surface); stroke-width: 2; }
+.cross { stroke: var(--ink-2); stroke-width: 1; }
+.b-classifier { fill: var(--s1); }
+.b-llm { fill: var(--s2); }
+.b-speech { fill: var(--s3); }
+.b-policy { fill: var(--bar-policy); }
+.b-caller { fill: var(--bar-neutral); }
+.b-wasted { fill: var(--surface); stroke: var(--s2); stroke-width: 1.5; }
+.b-timeout { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.hatch-line { stroke: var(--s2); stroke-width: 1.5; }
+.first-audio { stroke: var(--ink); stroke-width: 1.5; }
+.hit { fill: transparent; }
+
+/* prose */
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.prose p.rule-quote { color: var(--ink); max-width: none; font-family: var(--display); font-weight: 800; font-size: clamp(28px, 4.4vw, 42px); letter-spacing: -0.02em; line-height: 1.05; margin: 0; }
+.prose p, .prose li { color: var(--ink-2); font-size: 15px; max-width: 66ch; }
+.prose ul { padding-left: 1.1em; margin: 10px 0 0; display: grid; gap: 6px; }
+.prose li b { color: var(--ink); font-weight: 600; }
+footer { font-size: 13px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 8px 18px; border-top: 1px solid var(--rule); padding-top: 16px; }
+
+@media (max-width: 520px) {
+  body { font-size: 15px; }
+  .lede { font-size: 16px; }
+  .panel { padding: 16px; }
+  .tile .big { font-size: 34px; }
+}
+@media (prefers-reduced-motion: reduce) { .status[data-state="busy"] .dot { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="top">
+      <div class="wordmark">jev<span>elin</span></div>
+      <nav class="toplinks">
+        <a href="https://github.com/henryzhangpku/jevelin">GitHub</a>
+        <a href="#how">How it works</a>
+      </nav>
+    </div>
+    <h1 style="margin-top:22px">Fast, low-cost real-time agents.</h1>
+    <p class="lede">A voice agent makes a dozen small decisions every turn: <i>is this a card number, do they want a human, is my draft safe to say?</i> jevelin takes them <b>off the critical path</b> with a System One classifier like <a href="https://www.langchain.com/blog/building-a-harness-with-jev">Jev</a>, and schedules every turn as a dependency graph. Move the sliders. The Python engine is running in your browser.</p>
+    <div class="status" id="status" data-state="busy" role="status" aria-live="polite"><span class="dot"></span><span id="status-text">Loading Python in your browser (first visit downloads about 10 MB)…</span></div>
+  </header>
+
+  <section class="panel" aria-labelledby="controls-h">
+    <p class="eyebrow" id="controls-h">Assumptions: drag to change them</p>
+    <div class="controls" id="controls"></div>
+    <div class="controls-foot">
+      <label for="calls">Simulated calls</label>
+      <select id="calls">
+        <option value="100">100</option>
+        <option value="300" selected>300</option>
+        <option value="600">600</option>
+      </select>
+      <button type="button" id="reset">Reset to defaults</button>
+      <span class="mono" style="font-size:12px;color:var(--ink-3)">Same callers for both pipelines. Illustrative latencies, not production measurements.</span>
+    </div>
+  </section>
+
+  <section class="tiles" id="tiles" aria-label="Headline comparison"></section>
+
+  <section class="results">
+    <div class="panel">
+      <p class="eyebrow">When does the agent start speaking?</p>
+      <div class="legend"><span><i class="key fast"></i>Fast path</span><span><i class="key base"></i>Baseline: LLM judge in series</span></div>
+      <div class="chart" id="ecdf"></div>
+      <p class="caption">Share of turns that have started speaking by each moment after the caller stops. Further left is faster. Dots mark each median. Hover to read values.</p>
+    </div>
+    <div class="panel">
+      <p class="eyebrow">Baseline vs fast path</p>
+      <div id="table"></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="turn-h">
+    <h2 id="turn-h">One turn, stage by stage</h2>
+    <p class="lede" style="font-size:15px;margin-top:8px">Time zero is the moment the caller stops talking. Everything left of it happened while they were still speaking.</p>
+    <div class="pickers" style="margin-top:14px">
+      <label for="pick-call" class="mono" style="font-size:12px;color:var(--ink-3)">CALL</label>
+      <select id="pick-call"></select>
+      <label for="pick-turn" class="mono" style="font-size:12px;color:var(--ink-3)">TURN</label>
+      <select id="pick-turn"></select>
+    </div>
+    <div class="chips" id="chips" aria-label="Jump to an example"></div>
+    <p class="utter" id="utter"></p>
+    <div class="badges" id="badges"></div>
+    <div class="legend" style="margin-top:14px">
+      <span><i class="key" style="background:var(--s1)"></i>Classifier (Jev)</span>
+      <span><i class="key" style="background:var(--s2)"></i>LLM</span>
+      <span><i class="key" style="background:var(--s3)"></i>Speech out</span>
+      <span><i class="key" style="background:var(--bar-policy)"></i>Rules + router</span>
+      <span><i class="key" style="background:var(--bar-neutral)"></i>Caller speaking</span>
+      <span><i class="key" style="background:var(--surface);outline:1.5px solid var(--s2);outline-offset:-1.5px"></i>Discarded guess</span>
+      <span><i class="key" style="background:none;outline:1.5px dashed var(--ink-2);outline-offset:-1.5px"></i>Timed out</span>
+    </div>
+    <div class="lanes">
+      <div class="lane"><h3>Baseline <span class="outcome" id="out-base"></span></h3><div class="chart scroll" id="g-base"></div></div>
+      <div class="lane"><h3>Fast path <span class="outcome" id="out-fast"></span></h3><div class="chart scroll" id="g-fast"></div></div>
+    </div>
+  </section>
+
+  <section class="two" id="how">
+    <div class="panel prose">
+      <p class="eyebrow">The design rule</p>
+      <p class="rule-quote">Raise the drawbridge. Never lower it.</p>
+      <p>A classifier can make a turn more cautious. It can never make it less cautious. Every output leads to a stricter, pre-approved path: a protective script, a transfer, a blocked draft, a hold. None of them unlocks anything.</p>
+      <ul>
+        <li><b>Rules beat the classifier.</b> After hours, "transfer me" becomes a callback, whatever the model says.</li>
+        <li><b>Partial transcripts add caution but never route.</b> A card number is caught before the caller finishes reading it.</li>
+        <li><b>Fail closed.</b> A timeout gets the hold script. A missing answer never counts as a pass.</li>
+      </ul>
+    </div>
+    <div class="panel prose">
+      <p class="eyebrow">How the fast path works</p>
+      <ul>
+        <li><b>Classify while they're still talking.</b> One classifier call answers every question in parallel.</li>
+        <li><b>Script the routine turns.</b> Balance, due date, outage: pre-approved text, no LLM call.</li>
+        <li><b>Send the rest to the smallest model that fits.</b> When the router is unsure, it uses the large model.</li>
+        <li><b>Generate early.</b> Start on the partial transcript's guess, and throw it away if the final transcript disagrees.</li>
+        <li><b>Guard every generated draft.</b> Nothing unchecked is spoken.</li>
+      </ul>
+      <p style="margin-top:12px">What's simulated: LLMs, speech and the classifier's answers, with latencies and prices from a JSON profile you can replace. What's real: the scheduling, routing, rules and fail-closed logic. It's the same code as the <a href="https://github.com/henryzhangpku/jevelin">repo</a>, with tests.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>jevelin · MIT</span>
+    <a href="https://github.com/henryzhangpku/jevelin">Source</a>
+    <span>Jev is a model by TypeSafe AI. This project is independent.</span>
+  </footer>
+</div>
+
+<script>
+const SLIDERS = [
+  { id: "jev", group: "Classifier (Jev)", label: "Latency, median", min: 100, max: 800, step: 25, def: 300,
+    fmt: v => v + " ms", note: v => "p95 about " + Math.round(v * 1.6) + " ms" },
+  { id: "timeout", group: "Classifier (Jev)", label: "Timeout before failing closed", min: 300, max: 1500, step: 50, def: 600,
+    fmt: v => v + " ms", note: () => "applies to every classifier call" },
+  { id: "llm_judge", group: "LLMs", label: "LLM judge (baseline), median", min: 300, max: 2000, step: 50, def: 800,
+    fmt: v => v + " ms", note: v => "p95 about " + Math.round(v * 1.75) + " ms" },
+  { id: "large_llm", group: "LLMs", label: "Large model, first sentence", min: 150, max: 1500, step: 25, def: 450,
+    fmt: v => v + " ms", note: v => "p95 about " + Math.round(v * 2) + " ms" },
+  { id: "small_llm", group: "LLMs", label: "Small model, first sentence", min: 100, max: 1000, step: 25, def: 300,
+    fmt: v => v + " ms", note: v => "p95 about " + Math.round(v * 1.83) + " ms" },
+  { id: "speculate_min", group: "Fast path", label: "Generate early when routing confidence is at least", min: 0, max: 1.05, step: 0.05, def: 0,
+    fmt: v => v > 1 ? "never" : v === 0 ? "always" : v.toFixed(2), note: () => "lower is faster but wastes more tokens" },
+  { id: "confidence_floor", group: "Fast path", label: "Below this confidence, use the large model", min: 0.4, max: 0.95, step: 0.05, def: 0.6,
+    fmt: v => v.toFixed(2), note: () => "the router's safety margin" },
+];
+
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const fmtMs = (v) => v == null ? "–" : Math.round(v).toLocaleString("en-US") + " ms";
+const fmtInt = (v) => v == null ? "–" : Math.round(v).toLocaleString("en-US");
+const fmtPct = (v) => v == null ? "–" : Math.round(v * 100) + "%";
+const fmtUsd = (v) => v == null ? "–" : "$" + v.toFixed(4);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function text(parent, x, y, str, cls, anchor) {
+  const t = el("text", { x, y, class: cls || "g-axis", "text-anchor": anchor || "start" }, parent);
+  t.textContent = str;
+  return t;
+}
+
+/* ---------------- controls ---------------- */
+const groups = {};
+for (const s of SLIDERS) {
+  if (!groups[s.group]) {
+    const g = document.createElement("div");
+    g.className = "group";
+    g.innerHTML = "<h3>" + esc(s.group) + "</h3>";
+    $("controls").appendChild(g);
+    groups[s.group] = g;
+  }
+  const w = document.createElement("div");
+  w.className = "slider";
+  w.innerHTML =
+    '<label for="s-' + s.id + '">' + esc(s.label) + '</label><output id="o-' + s.id + '"></output>' +
+    '<input type="range" id="s-' + s.id + '" min="' + s.min + '" max="' + s.max + '" step="' + s.step + '" value="' + s.def + '">' +
+    '<small id="n-' + s.id + '"></small>';
+  groups[s.group].appendChild(w);
+}
+function readout() {
+  for (const s of SLIDERS) {
+    const v = parseFloat($("s-" + s.id).value);
+    $("o-" + s.id).textContent = s.fmt(v);
+    $("n-" + s.id).textContent = s.note(v);
+  }
+}
+function settings() {
+  const out = { calls: parseInt($("calls").value, 10), seed: 7 };
+  for (const s of SLIDERS) {
+    const v = parseFloat($("s-" + s.id).value);
+    if (Math.abs(v - s.def) > 1e-9) out[s.id] = v;       // defaults reproduce the README exactly
+  }
+  return out;
+}
+let debounce = null;
+function changed() {
+  readout();
+  clearTimeout(debounce);
+  debounce = setTimeout(run, 280);
+}
+for (const s of SLIDERS) $("s-" + s.id).addEventListener("input", changed);
+$("calls").addEventListener("change", run);
+$("reset").addEventListener("click", () => {
+  for (const s of SLIDERS) $("s-" + s.id).value = s.def;
+  $("calls").value = "300";
+  readout();
+  run();
+});
+readout();
+
+/* ---------------- worker ---------------- */
+function setStatus(state, msg) {
+  $("status").dataset.state = state;
+  $("status-text").textContent = msg;
+}
+const BASE = new URL(location.pathname.includes("/docs/") ? "../" : "./", location.href).href;
+const worker = new Worker("worker.js");
+let latest = 0, booted = false, data = null;
+const sel = { call: 0, turn: 0, chip: null };
+
+worker.onmessage = (e) => {
+  const m = e.data;
+  if (m.type === "ready") { booted = true; run(); return; }
+  if (m.type === "error") { setStatus("error", "Something went wrong: " + m.message); return; }
+  if (m.type === "result" && m.id === latest) {
+    data = m.data;
+    setStatus("ok", "Simulated " + data.turns.toLocaleString("en-US") + " caller turns in " +
+      (m.ms / 1000).toFixed(1) + " s, in your browser");
+    render(!sel.picked);
+  }
+};
+worker.onerror = (e) => setStatus("error", "Could not start the simulation: " + (e.message || "worker error"));
+worker.postMessage({ type: "boot", base: BASE });
+
+function run() {
+  if (!booted) return;
+  latest += 1;
+  setStatus("busy", "Simulating…");
+  worker.postMessage({ type: "run", id: latest, settings: settings() });
+}
+
+/* ---------------- tiles and table ---------------- */
+function render(pickDefault) {
+  const b = data.summary.baseline, f = data.summary.fast;
+  const tiles = [
+    { label: "Time to first audio, median", fast: fmtMs(f.ttfa_p50), base: fmtMs(b.ttfa_p50),
+      delta: b.ttfa_p50 ? Math.round((1 - f.ttfa_p50 / b.ttfa_p50) * 100) + "% sooner" : "" },
+    { label: "Model cost per call", fast: fmtUsd(f.cost_per_call), base: fmtUsd(b.cost_per_call),
+      delta: f.cost_per_call ? (b.cost_per_call / f.cost_per_call).toFixed(1) + "× less" : "" },
+    { label: "Turns over the " + data.budget_ms + " ms budget", fast: fmtPct(f.over_budget), base: fmtPct(b.over_budget),
+      delta: "the rest start speaking in time" },
+  ];
+  $("tiles").innerHTML = tiles.map(t =>
+    '<div class="tile"><span class="label">' + esc(t.label) + '</span>' +
+    '<div class="pair"><span class="big"><i class="key fast" aria-hidden="true"></i>' + t.fast + '</span>' +
+    '<span class="vs"><i class="key base" aria-hidden="true"></i>baseline ' + t.base + '</span></div>' +
+    '<span class="delta">' + esc(t.delta) + '</span></div>').join("");
+
+  const rows = [
+    ["Time to first audio, p50", fmtMs(b.ttfa_p50), fmtMs(f.ttfa_p50)],
+    ["Time to first audio, p95", fmtMs(b.ttfa_p95), fmtMs(f.ttfa_p95)],
+    ["Turns over " + data.budget_ms + " ms", fmtPct(b.over_budget), fmtPct(f.over_budget)],
+    ["LLM tokens per call", fmtInt(b.llm_tokens_per_call), fmtInt(f.llm_tokens_per_call)],
+    ["Classifier tokens per call", fmtInt(b.jev_tokens_per_call), fmtInt(f.jev_tokens_per_call)],
+    ["Model cost per call", fmtUsd(b.cost_per_call), fmtUsd(f.cost_per_call)],
+    ["of which wasted early guesses", "–", (f.wasted_share * 100).toFixed(1) + "%", true],
+    ["Turns answered by a script", fmtPct(b.script_share), fmtPct(f.script_share)],
+    ["Safety action decided, p50", fmtMs(b.protect_p50), fmtMs(f.protect_p50)],
+    ["before the caller finished", fmtInt(b.protect_early), fmtInt(f.protect_early), true],
+    ["Risky drafts spoken", fmtInt(b.risky_spoken), fmtInt(f.risky_spoken)],
+    ["Risky drafts blocked", fmtInt(b.guard_blocked), fmtInt(f.guard_blocked)],
+    ["Fail-closed turns", fmtInt(b.fail_closed), fmtInt(f.fail_closed)],
+  ];
+  $("table").innerHTML = "<table><thead><tr><th></th><th>Baseline</th><th>Fast path</th></tr></thead><tbody>" +
+    rows.map(r => "<tr><td" + (r[3] ? ' class="sub"' : "") + ">" + esc(r[0]) + "</td><td>" + r[1] + "</td><td>" + r[2] + "</td></tr>").join("") +
+    "</tbody></table>";
+
+  drawEcdf();
+  buildPickers(pickDefault);
+}
+
+/* ---------------- ECDF ---------------- */
+function quantiles(sorted, k) {
+  const out = [];
+  for (let i = 0; i < k; i++) out.push(sorted[Math.floor(i * (sorted.length - 1) / (k - 1))]);
+  return out;
+}
+function share(sorted, x) {
+  let lo = 0, hi = sorted.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid] <= x) lo = mid + 1; else hi = mid; }
+  return lo / sorted.length;
+}
+function drawEcdf() {
+  const host = $("ecdf");
+  host.innerHTML = "";
+  const W = 640, H = 300, m = { l: 44, r: 20, t: 22, b: 36 };
+  const fs = data.ttfa.fast, bs = data.ttfa.baseline;
+  const p99 = Math.max(fs[Math.floor(fs.length * 0.99)], bs[Math.floor(bs.length * 0.99)], data.budget_ms * 1.3);
+  const xmax = Math.min(6000, Math.ceil(p99 / 500) * 500);
+  const X = v => m.l + (Math.min(v, xmax) / xmax) * (W - m.l - m.r);
+  const Y = p => H - m.b - p * (H - m.t - m.b);
+  const svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
+    "aria-label": "Cumulative share of turns that have started speaking, by time after the caller stops. Fast path median " +
+      fmtMs(data.summary.fast.ttfa_p50) + ", baseline median " + fmtMs(data.summary.baseline.ttfa_p50) + "." }, host);
+
+  const step = xmax > 3000 ? 1000 : 500;
+  for (let v = 0; v <= xmax; v += step) {
+    el("line", { x1: X(v), x2: X(v), y1: m.t, y2: H - m.b, class: "g-grid" }, svg);
+    text(svg, X(v), H - m.b + 18, v === 0 ? "0" : v.toLocaleString("en-US") + (v + step > xmax ? " ms" : ""), "g-axis", "middle");
+  }
+  for (const p of [0, 0.25, 0.5, 0.75, 1]) {
+    el("line", { x1: m.l, x2: W - m.r, y1: Y(p), y2: Y(p), class: "g-grid" }, svg);
+    text(svg, m.l - 8, Y(p) + 4, Math.round(p * 100) + "%", "g-axis", "end");
+  }
+  el("line", { x1: X(data.budget_ms), x2: X(data.budget_ms), y1: m.t - 6, y2: H - m.b, class: "g-budget" }, svg);
+  text(svg, X(data.budget_ms) + 6, m.t + 4, data.budget_ms + " ms budget", "g-lab");
+
+  const series = [["base", bs], ["fast", fs]];
+  for (const [key, arr] of series) {
+    const q = quantiles(arr, 300);
+    const pts = q.map((v, i) => X(v).toFixed(1) + "," + Y(i / (q.length - 1)).toFixed(1));
+    el("polyline", { points: pts.join(" "), class: "l-" + key }, svg);
+  }
+  // direct labels at each median
+  const fx = X(data.summary.fast.ttfa_p50), bx = X(data.summary.baseline.ttfa_p50);
+  el("circle", { cx: fx, cy: Y(0.5), r: 5, class: "d-fast" }, svg);
+  el("circle", { cx: bx, cy: Y(0.5), r: 5, class: "d-base" }, svg);
+  const close = Math.abs(bx - fx) < 150;
+  text(svg, fx - 9, Y(0.5) - 8, "fast path " + fmtMs(data.summary.fast.ttfa_p50), "g-lab-strong", "end");
+  text(svg, bx + 9, Y(0.5) + (close ? 18 : 16), "baseline " + fmtMs(data.summary.baseline.ttfa_p50), "g-lab-strong", "start");
+
+  // hover
+  const cross = el("line", { y1: m.t, y2: H - m.b, class: "cross", visibility: "hidden" }, svg);
+  const hit = el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, class: "hit" }, svg);
+  const tip = document.createElement("div");
+  tip.className = "tip"; tip.hidden = true; tip.setAttribute("aria-hidden", "true");
+  host.appendChild(tip);
+  function move(ev) {
+    const r = svg.getBoundingClientRect();
+    const sx = (ev.clientX - r.left) * (W / r.width);
+    const ms = Math.max(0, ((sx - m.l) / (W - m.l - m.r)) * xmax);
+    cross.setAttribute("x1", X(ms)); cross.setAttribute("x2", X(ms)); cross.setAttribute("visibility", "visible");
+    tip.innerHTML = "<b>Within " + fmtMs(ms) + "</b>" +
+      '<div class="row"><span><i class="key fast"></i>fast path</span><span>' + fmtPct(share(fs, ms)) + '</span></div>' +
+      '<div class="row"><span><i class="key base"></i>baseline</span><span>' + fmtPct(share(bs, ms)) + '</span></div>';
+    tip.hidden = false;
+    const hr = host.getBoundingClientRect();
+    let left = ev.clientX - hr.left + 14;
+    if (left + 180 > hr.width) left = ev.clientX - hr.left - 190;
+    tip.style.left = left + "px";
+    tip.style.top = Math.max(0, ev.clientY - hr.top - 60) + "px";
+  }
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); });
+}
+
+/* ---------------- turn timeline ---------------- */
+const CHIPS = [
+  ["Card number caught early", t => t.fast.early_protect && t.fast.action === "secure_payment"],
+  ["Late trigger, caught at the end", t => t.fast.decision_kind === "protective" && !t.fast.early_protect],
+  ["Routine turn → script", t => t.fast.decision_kind === "route" && t.fast.tier === "script"],
+  ["Early guess reused", t => t.fast.stages.some(s => s.name.includes("speculative") && !s.wasted)],
+  ["Early guess discarded", t => t.fast.stages.some(s => s.wasted)],
+  ["Unsure → large model", t => t.fast.why.startsWith("low routing confidence")],
+  ["Risky draft blocked", t => t.fast.guard_blocked],
+  ["Rule overrides the model", t => t.fast.decision_kind === "rule"],
+  ["Classifier timed out", t => t.fast.fail_closed],
+];
+function findFirst(pred) {
+  for (const c of data.detail) for (let i = 0; i < c.turns.length; i++) if (pred(c.turns[i])) return [c.id, i];
+  return null;
+}
+function buildPickers(pickDefault) {
+  const cs = $("pick-call");
+  cs.innerHTML = data.detail.map(c => '<option value="' + c.id + '">Call ' + (c.id + 1) + " · " + c.turns.length +
+    " turns" + (c.ctx.length ? " · " + c.ctx.join(", ").replace(/_/g, " ") : "") + "</option>").join("");
+  $("chips").innerHTML = "";
+  CHIPS.forEach(([label, pred], i) => {
+    const hit = findFirst(pred);
+    const bt = document.createElement("button");
+    bt.type = "button"; bt.textContent = label; bt.disabled = !hit;
+    bt.setAttribute("aria-pressed", String(sel.chip === i));
+    bt.addEventListener("click", () => { sel.call = hit[0]; sel.turn = hit[1]; sel.chip = i; sel.picked = true; syncPickers(); });
+    $("chips").appendChild(bt);
+  });
+  if (pickDefault) {
+    const hit = findFirst(CHIPS[3][1]) || [0, 0];
+    sel.call = hit[0]; sel.turn = hit[1]; sel.chip = 3;
+  }
+  if (sel.call >= data.detail.length) { sel.call = 0; sel.turn = 0; }
+  syncPickers();
+}
+function syncPickers() {
+  $("pick-call").value = sel.call;
+  const c = data.detail[sel.call];
+  if (sel.turn >= c.turns.length) sel.turn = 0;
+  $("pick-turn").innerHTML = c.turns.map((t, i) => '<option value="' + i + '">Turn ' + (i + 1) + " · " + t.kind + "</option>").join("");
+  $("pick-turn").value = sel.turn;
+  [...$("chips").children].forEach((b, i) => b.setAttribute("aria-pressed", String(sel.chip === i)));
+  drawTurn();
+}
+$("pick-call").addEventListener("change", e => { sel.call = +e.target.value; sel.turn = 0; sel.chip = null; sel.picked = true; syncPickers(); });
+$("pick-turn").addEventListener("change", e => { sel.turn = +e.target.value; sel.chip = null; sel.picked = true; syncPickers(); });
+
+const PRETTY = {
+  "llm judge": "LLM judge", "policy": "Rules + router", "tts": "Speech out", "tts · safe fallback": "Speech out · safe fallback",
+  "jev · partial": "Jev · partial transcript", "jev · final": "Jev · final transcript", "jev · guard": "Jev · output guard",
+  "small_llm": "Small model", "large_llm": "Large model",
+  "small_llm · speculative": "Small model · early guess", "large_llm · speculative": "Large model · early guess",
+};
+function outcome(t) {
+  return "→ " + t.action.replace(/_/g, " ") + " (" + t.why + ") · first audio " + fmtMs(t.ttfa);
+}
+function drawTurn() {
+  const c = data.detail[sel.call], t = c.turns[sel.turn];
+  $("utter").innerHTML = "<q>" + esc(t.text) + "</q>";
+  const badges = [t.kind + " turn"].concat(c.ctx.map(x => x.replace(/_/g, " ")));
+  if (t.fast.early_protect) badges.push("caught before the caller finished");
+  $("badges").innerHTML = badges.map(b => '<span class="badge">' + esc(b) + "</span>").join("");
+  $("out-base").textContent = outcome(t.baseline);
+  $("out-fast").textContent = outcome(t.fast);
+  const all = t.baseline.stages.concat(t.fast.stages);
+  // Start just before the first stage; a long utterance is clipped and labeled instead of squeezing the chart.
+  let lo = Math.max(-t.speech_ms, Math.min(...all.map(s => s.start)) - 400);
+  lo = Math.floor(lo / 250) * 250;
+  const hi = Math.ceil((Math.max(...all.map(s => s.end), t.baseline.ttfa, t.fast.ttfa) + 150) / 250) * 250;
+  gantt($("g-base"), t, "baseline", lo, hi);
+  gantt($("g-fast"), t, "fast", lo, hi);
+}
+function gantt(host, t, which, lo, hi) {
+  host.innerHTML = "";
+  const r = t[which];
+  const rows = [{ name: "Caller speaking", kind: "caller", start: Math.max(-t.speech_ms, lo), end: 0, tokens: 0,
+                   clipped: -t.speech_ms < lo, spoke: t.speech_ms }]
+    .concat(r.stages.map(s => Object.assign({}, s, { name: PRETTY[s.name] || s.name })));
+  const W = 720, L = 190, R = 16, rowH = 26, top = 30, H = top + rows.length * rowH + 28;
+  const X = v => L + ((v - lo) / (hi - lo)) * (W - L - R);
+  const svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
+    "aria-label": (which === "fast" ? "Fast path" : "Baseline") + " timeline: " + outcome(r) }, host);
+  const defs = el("defs", {}, svg);
+  const pat = el("pattern", { id: "hatch-" + which, width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+  el("line", { x1: 0, y1: 0, x2: 0, y2: 6, class: "hatch-line" }, pat);
+
+  const step = (hi - lo) > 4000 ? 1000 : 500;
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    if (v !== 0 && Math.abs(X(v) - X(0)) < 40) continue;
+    el("line", { x1: X(v), x2: X(v), y1: top - 6, y2: H - 24, class: "g-grid" }, svg);
+    text(svg, X(v), H - 8, v === 0 ? "0" : (v > 0 ? "+" : "−") + Math.abs(v).toLocaleString("en-US"), "g-axis", "middle");
+  }
+  el("line", { x1: X(0), x2: X(0), y1: top - 14, y2: H - 24, class: "g-zero" }, svg);
+  text(svg, X(0) + 5, top - 16, "caller stops", "g-lab");
+
+  const tip = document.createElement("div");
+  tip.className = "tip"; tip.hidden = true; tip.setAttribute("aria-hidden", "true");
+  host.appendChild(tip);
+
+  rows.forEach((s, i) => {
+    const y = top + i * rowH;
+    text(svg, 0, y + 16, s.name, "g-row");
+    const x0 = X(s.start), w = Math.max(3, X(s.end) - x0);
+    let cls = "b-" + s.kind;
+    if (s.wasted) cls = "b-wasted";
+    if (s.timed_out) cls = "b-timeout";
+    const bar = el("rect", { x: x0, y: y + 5, width: w, height: 15, rx: 3, class: cls }, svg);
+    if (s.wasted) {
+      el("rect", { x: x0, y: y + 5, width: w, height: 15, rx: 3, fill: "url(#hatch-" + which + ")" }, svg);
+      text(svg, x0 + w + 6, y + 16, "discarded", "g-lab");
+    }
+    if (s.timed_out) text(svg, x0 + w + 6, y + 16, "timed out", "g-lab");
+    if (s.clipped) text(svg, x0 + 6, y + 16, "← talking for " + (s.spoke / 1000).toFixed(1) + " s", "g-lab");
+    const hit = el("rect", { x: Math.min(x0, W - R - 40), y: y + 1, width: Math.max(w, 24), height: rowH - 2, class: "hit" }, svg);
+    hit.addEventListener("pointermove", ev => {
+      const dur = s.end - s.start;
+      tip.innerHTML = "<b>" + esc(s.name) + "</b>" +
+        '<div class="row"><span>from</span><span>' + fmtMs(s.start) + "</span></div>" +
+        '<div class="row"><span>to</span><span>' + fmtMs(s.end) + "</span></div>" +
+        '<div class="row"><span>duration</span><span>' + fmtMs(dur) + "</span></div>" +
+        (s.tokens ? '<div class="row"><span>tokens</span><span>' + fmtInt(s.tokens) + "</span></div>" : "") +
+        (s.wasted ? "<div>Discarded: the final transcript disagreed. The tokens were still spent.</div>" : "") +
+        (s.timed_out ? "<div>Timed out. The turn failed closed.</div>" : "");
+      tip.hidden = false;
+      const hr = host.getBoundingClientRect();
+      let left = ev.clientX - hr.left + host.scrollLeft + 14;
+      if (ev.clientX - hr.left + 200 > hr.width) left -= 214;
+      tip.style.left = left + "px";
+      tip.style.top = (ev.clientY - hr.top + 12) + "px";
+    });
+    hit.addEventListener("pointerleave", () => { tip.hidden = true; });
+    bar.setAttribute("aria-hidden", "true");
+  });
+
+  const fa = X(r.ttfa);
+  el("line", { x1: fa, x2: fa, y1: top - 6, y2: H - 24, class: "first-audio" }, svg);
+  const label = "first audio " + fmtMs(r.ttfa);
+  const right = fa + 150 > W;
+  text(svg, right ? fa - 5 : fa + 5, top - 4, label, "g-lab-strong", right ? "end" : "start");
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+{
+  "note": "Illustrative defaults for a voice agent. Replace each p50/p95 with measurements from your own stack.",
+  "ttfa_budget_ms": 800,
+  "speech": {
+    "ms_per_word": 380,
+    "partial_at": 0.6,
+    "asr_lag_ms": 100,
+    "vad_ms": 250
+  },
+  "latency_ms": {
+    "jev": {
+      "p50": 300,
+      "p95": 480
+    },
+    "llm_judge": {
+      "p50": 800,
+      "p95": 1400
+    },
+    "small_llm": {
+      "p50": 300,
+      "p95": 550
+    },
+    "large_llm": {
+      "p50": 450,
+      "p95": 900
+    },
+    "tts": {
+      "p50": 150,
+      "p95": 220
+    },
+    "policy": {
+      "p50": 1,
+      "p95": 2
+    }
+  },
+  "timeouts_ms": {
+    "jev_inbound": 600,
+    "jev_guard": 500
+  },
+  "price_per_m": {
+    "jev": {
+      "in": 0.042,
+      "out": 0.0
+    },
+    "llm_judge": {
+      "in": 3.0,
+      "out": 15.0
+    },
+    "small_llm": {
+      "in": 0.25,
+      "out": 1.25
+    },
+    "large_llm": {
+      "in": 3.0,
+      "out": 15.0
+    }
+  },
+  "tokens": {
+    "judge_output": 150,
+    "reply_output": 80
+  }
+}

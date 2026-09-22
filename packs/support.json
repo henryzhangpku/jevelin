@@ -1,0 +1,327 @@
+{
+  "name": "support",
+  "description": "Voice agent for a broadband and mobile provider: billing, outages, account changes.",
+  "prompt_tokens": {
+    "system": 650,
+    "judge_rubric": 900
+  },
+  "inbound": [
+    {
+      "key": "payment_card_spoken",
+      "type": "noul",
+      "instructions": "In their latest turn, the caller is reading out payment card details: a card number, expiry date or security code",
+      "threshold": 0.3,
+      "mock": {
+        "patterns": [
+          "card number",
+          "\\b\\d{4}[ -]\\d{4}\\b",
+          "security code|\\bcvv\\b",
+          "expires? \\d"
+        ]
+      }
+    },
+    {
+      "key": "legal_threat",
+      "type": "noul",
+      "instructions": "In their latest turn, the caller mentions a lawyer, legal action, a regulator or an ombudsman",
+      "threshold": 0.3,
+      "mock": {
+        "patterns": [
+          "lawyer|attorney",
+          "\\bsue\\b|legal action|small claims",
+          "regulator|ombudsman"
+        ]
+      }
+    },
+    {
+      "key": "vulnerable_customer",
+      "type": "noul",
+      "instructions": "In their latest turn, the caller describes a medical need, disability, bereavement or financial hardship",
+      "threshold": 0.3,
+      "mock": {
+        "patterns": [
+          "hospital|medical device|oxygen",
+          "disabilit",
+          "lost my job|can't afford|cannot afford",
+          "passed away"
+        ]
+      }
+    },
+    {
+      "key": "third_party_caller",
+      "type": "noul",
+      "instructions": "In their latest turn, the person calling is not the account holder",
+      "threshold": 0.3,
+      "mock": {
+        "patterns": [
+          "on behalf of",
+          "calling for my",
+          "it's (his|her) account|not my account"
+        ]
+      }
+    },
+    {
+      "key": "wants_human",
+      "type": "noul",
+      "instructions": "In their latest turn, the caller asks to speak with a person rather than an automated agent",
+      "threshold": 0.4,
+      "mock": {
+        "patterns": [
+          "real person|a human",
+          "representative|supervisor|manager",
+          "speak to (an |a )?agent"
+        ]
+      }
+    },
+    {
+      "key": "frustration",
+      "type": "score",
+      "instructions": "In their latest turn, how frustrated the caller is",
+      "criteria": [
+        "Calm",
+        "Mildly annoyed",
+        "Frustrated",
+        "Angry, strong language"
+      ],
+      "threshold": 2,
+      "mock": {
+        "patterns": [
+          "ridiculous|unacceptable",
+          "third time|again and again",
+          "furious|fed up|had it",
+          "waste of (my )?time"
+        ],
+        "per_hit": 1.0
+      }
+    },
+    {
+      "key": "intent",
+      "type": "choice",
+      "instructions": "In their latest turn, what the caller needs from this turn",
+      "criteria": {
+        "balance": "Their current balance or amount owed",
+        "due_date": "When the bill is due",
+        "outage": "Whether there is a service outage",
+        "password_reset": "Resetting an account password",
+        "hours": "Opening or support hours",
+        "simple": "A short answer tailored to their account",
+        "complex": "An explanation, a comparison, or several steps"
+      },
+      "mock": {
+        "patterns": {
+          "balance": [
+            "\\bbalance\\b",
+            "how much (do )?i owe"
+          ],
+          "due_date": [
+            "\\bdue\\b"
+          ],
+          "outage": [
+            "outage",
+            "internet (is|keeps)"
+          ],
+          "password_reset": [
+            "password"
+          ],
+          "hours": [
+            "\\bhours\\b"
+          ],
+          "simple": [
+            "change the email",
+            "cheaper plan",
+            "moving",
+            "second line",
+            "autopay"
+          ],
+          "complex": [
+            "charged twice",
+            "explain",
+            "compare",
+            "\\bwhy\\b",
+            "dispute",
+            "promised"
+          ]
+        },
+        "default": "simple"
+      }
+    }
+  ],
+  "guard": [
+    {
+      "key": "unauthorized_commitment",
+      "type": "noul",
+      "instructions": "The reply promises a refund, credit, waiver or discount",
+      "threshold": 0.3,
+      "mock": {
+        "patterns": [
+          "refund",
+          "waive",
+          "credit your account",
+          "for free"
+        ]
+      }
+    },
+    {
+      "key": "unsupported_claim",
+      "type": "noul",
+      "instructions": "The reply makes an absolute claim about service quality or availability",
+      "threshold": 0.3,
+      "mock": {
+        "patterns": [
+          "100% uptime",
+          "never goes down",
+          "guarantee"
+        ]
+      }
+    },
+    {
+      "key": "discloses_sensitive",
+      "type": "noul",
+      "instructions": "The reply reads out card, password or identity details",
+      "threshold": 0.3,
+      "mock": {
+        "patterns": [
+          "card ending",
+          "your password is",
+          "date of birth is"
+        ]
+      }
+    }
+  ],
+  "protective": [
+    {
+      "flag": "payment_card_spoken",
+      "action": "secure_payment",
+      "severity": 1,
+      "early": true
+    },
+    {
+      "flag": "legal_threat",
+      "action": "escalate_legal",
+      "severity": 2
+    },
+    {
+      "flag": "vulnerable_customer",
+      "action": "escalate_care",
+      "severity": 3,
+      "early": true
+    },
+    {
+      "flag": "third_party_caller",
+      "action": "verify_holder",
+      "severity": 4
+    },
+    {
+      "flag": "wants_human",
+      "action": "transfer",
+      "severity": 5
+    },
+    {
+      "flag": "frustration",
+      "action": "transfer",
+      "severity": 6
+    }
+  ],
+  "rules": [
+    {
+      "if_action": "transfer",
+      "if_context": "after_hours",
+      "then": "callback",
+      "why": "no live team after hours, offer a callback"
+    },
+    {
+      "if_action": "escalate_legal",
+      "if_context": "after_hours",
+      "then": "callback",
+      "why": "no live team after hours, offer a callback"
+    }
+  ],
+  "route": {
+    "question": "intent",
+    "confidence_floor": 0.6,
+    "default_tier": "large_llm",
+    "tiers": {
+      "simple": "small_llm",
+      "complex": "large_llm"
+    }
+  },
+  "scripts": {
+    "secure_payment": "For your security I'm pausing this recording and moving you to our secure payment line.",
+    "escalate_legal": "I understand. I'm connecting you with our customer relations team, who can help with this directly.",
+    "escalate_care": "Thank you for telling me. I'm connecting you with a specialist who can look at the options with you.",
+    "verify_holder": "Before I can discuss the account I'll need to speak with the account holder. Are they available?",
+    "transfer": "Of course. I'm connecting you with a member of our team now.",
+    "callback": "Our team is offline right now. I can book a callback for eight tomorrow morning. Shall I do that?",
+    "hold": "One moment while I check that for you.",
+    "safe_fallback": "Let me get the right person to confirm that for you.",
+    "balance": "I can text your current balance to the number on the account right now. Shall I send it?",
+    "due_date": "I can text you the due date and amount for this month's bill now. Would that help?",
+    "outage": "There is a known issue in some areas. I can text you updates as soon as it changes.",
+    "password_reset": "I've sent a password reset link to the email on the account. It's valid for thirty minutes.",
+    "hours": "Our phone team is available from eight in the morning to eight at night, every day."
+  },
+  "drafts": {
+    "small_llm": [
+      "Sure, I can help with that. Here's the quickest way to do it.",
+      "Yes, you can do that in the app under Account, or I can do it for you now.",
+      "Good question. The short answer is yes, and it takes about a minute."
+    ],
+    "large_llm": [
+      "I can see why that's confusing. Let me go through this bill line by line.",
+      "Let's compare the two plans side by side on price, speed and contract length.",
+      "I'm sorry about that. Let me look at what changed on your account and why."
+    ]
+  },
+  "risky_draft_rate": 0.05,
+  "risky_drafts": [
+    "No problem, I'll refund the whole year for you right now.",
+    "Don't worry, our network has 100% uptime and never goes down.",
+    "I can waive every fee on the account for good."
+  ],
+  "mix": {
+    "routine": 0.5,
+    "simple": 0.22,
+    "complex": 0.14,
+    "trigger": 0.14
+  },
+  "turns_per_call": [
+    3,
+    7
+  ],
+  "context_rates": {
+    "after_hours": 0.25
+  },
+  "turns": {
+    "routine": [
+      "Hi, what's my balance right now?",
+      "When is my bill due this month?",
+      "Is there an outage in my area? My internet is down.",
+      "I need to reset my password, I'm locked out.",
+      "What are your hours?",
+      "Can you tell me how much I owe?",
+      "My internet keeps dropping, is there an outage near me?",
+      "I forgot my password again, can you reset it?"
+    ],
+    "simple": [
+      "Can I change the email on my account?",
+      "Do you have a cheaper plan for just internet?",
+      "I'm moving next month, how do I take my service with me?",
+      "Can I add a second line to my plan?",
+      "How do I set up autopay?"
+    ],
+    "complex": [
+      "I was charged twice this month and I don't understand why, can you explain the bill?",
+      "I want to compare the fiber plan with what I have and see if it's worth upgrading.",
+      "Why did my price go up when I was promised a fixed rate for two years?",
+      "What's my balance, and why is it higher than last month?"
+    ],
+    "trigger": [
+      "Okay I'm ready to pay, my card number is 4111 1111 1111 1111 and it expires 09 28.",
+      "I've had it with this service, honestly I'm going to talk to my lawyer about it.",
+      "I'm calling on behalf of my mother, it's her account and she's in the hospital.",
+      "This is ridiculous, it's the third time I've called, just let me speak to a real person.",
+      "My dad relies on the internet for a medical device and it's been down all day.",
+      "I lost my job last month and I can't afford this bill anymore, what can I do?"
+    ]
+  }
+}
