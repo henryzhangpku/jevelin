@@ -65,6 +65,54 @@ export TYPESAFE_API_KEY=...                  # https://console.typesafe.ai/keys
 python -m jevelin compare --classifier jev --calls 20
 ```
 
+### The classifier is an interface, not a vendor
+
+[Laya](https://github.com/NandhaKishorM/laya) is an Apache-2.0 System One engine
+in the same class: typed `choice`, `score` and `noul` decisions in a single
+forward pass, with calibrated probabilities and no generated text. `jevelin`
+speaks to it three ways, and **the pack needs no changes at all** — this project's
+question format and Laya's are the same shape.
+
+**Local, on your own hardware.** No key, no network, nothing leaves the machine:
+
+```bash
+pip install laya
+python -m jevelin compare --classifier laya --calls 20
+```
+
+**Self-hosted behind HTTP**, if you want one warm process serving several callers:
+
+```bash
+LAYA_DEVICE=cuda LAYA_PRELOAD=1 laya-serve          # in another terminal
+export LAYA_BASE_URL=http://localhost:8000/v1
+python -m jevelin compare --classifier laya --calls 20
+```
+
+**A hosted endpoint**, when you would rather not run a GPU:
+
+```bash
+export LAYA_BASE_URL=https://api.impossibl.com/v1
+export LAYA_API_KEY=...                      # or IMPOSSIBL_API_KEY
+python -m jevelin compare --classifier laya --calls 20
+```
+
+The key is read from the environment and never from a file, so nothing secret
+belongs in this repository or in a pack.
+
+**On the cost line when you self-host.** Laya usage is priced with the profile's
+`jev` rate, which keeps every existing profile working. That is right for a
+hosted endpoint and deliberately conservative for a local one, where the
+marginal price per token is zero and the real cost is the card. If you run it
+yourself, set `price_per_m.jev` to `0` or to your amortised GPU rate rather than
+reading the cost card literally.
+
+**On the published benchmarks.** Laya reports roughly 33 ms for a single
+question locally against 236–276 ms for a hosted Jev call. Those figures compare
+*deployment models*, not models: the second includes a network round trip and
+queueing that the first does not. A fair comparison runs both the same way,
+which is one reason all three transports are wired here. Measure your own, then
+put the numbers in a profile.
+
 ## The two pipelines
 
 **Baseline**, the common shape today: wait for the caller to finish, ask an LLM to judge

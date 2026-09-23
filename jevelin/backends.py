@@ -6,9 +6,12 @@ the same LLM latency on the same turn, the same risky draft.
 """
 
 import asyncio
+import json
+import os
 import random
 import re
 import time
+import urllib.request
 from dataclasses import dataclass
 
 from .pack import est_tokens
@@ -142,6 +145,133 @@ class JevSystemOne:
                 answers[k] = Answer("score", float(a.score))
         tokens = resp.usage.input_tokens or est_tokens(state)
         return answers, [Usage(self.model, tokens)]
+
+
+class LayaSystemOne:
+    """Laya: an Apache-2.0 System One classifier, run locally or behind HTTP.
+
+    Same architectural slot as Jev, so it reports under the `jev` model key and
+    every existing profile and pack works unchanged. Three ways to run it, and
+    the point of supporting all three is that the *architecture* here does not
+    depend on a vendor:
+
+        local      pip install laya           -> in-process, your hardware
+        self-host  laya-serve                 -> LAYA_BASE_URL=http://host:8000/v1
+        hosted     api.impossibl.com          -> LAYA_BASE_URL + LAYA_API_KEY
+
+    No API key is ever read from a file or committed. It comes from the
+    environment, and only when you point this at an endpoint that needs one.
+
+    On cost: usage is priced with the profile's `jev` rate, which is right for a
+    hosted endpoint and *conservative* for a self-hosted one. If you run it on
+    your own GPU the marginal per-token price is zero and the real cost is the
+    card, so set `price_per_m.jev` to 0 (or to your amortised rate) in your
+    profile rather than reading the cost card literally.
+    """
+
+    model = "jev"
+
+    #: env var names, in the order they are consulted
+    URL_ENV = ("LAYA_BASE_URL", "IMPOSSIBL_BASE_URL")
+    KEY_ENV = ("LAYA_API_KEY", "IMPOSSIBL_API_KEY")
+
+    def __init__(self, *_, base_url=None, api_key=None, model_name=None, timeout=10.0):
+        self.base_url = base_url or _first_env(self.URL_ENV)
+        self.api_key = api_key or _first_env(self.KEY_ENV)
+        self.model_name = model_name or os.environ.get("LAYA_MODEL", "convaiinnovations/laya")
+        self.timeout = timeout
+        self.router = None
+        if not self.base_url:
+            # local, in-process. Imported lazily so the package stays optional.
+            try:
+                from laya import Router
+            except ImportError:
+                raise SystemExit(
+                    "--classifier laya needs either the `laya` package "
+                    "(pip install laya) for local inference, or LAYA_BASE_URL "
+                    "pointing at a laya-serve / api.impossibl.com endpoint."
+                )
+            self.router = Router(preload=True)
+
+    # -- request shaping ---------------------------------------------------
+
+    @staticmethod
+    def as_payload(questions):
+        """jevelin's pack format is already Laya's question format.
+
+        `criteria` is a {option: description} map for choice and a list of
+        levels for score, which is exactly what Laya expects, so this is a
+        rename rather than a translation.
+        """
+        out = {}
+        for k, q in questions.items():
+            item = {"type": q.type, "instructions": q.instructions}
+            if q.criteria:
+                item["criteria"] = q.criteria
+            out[k] = item
+        return out
+
+    @staticmethod
+    def read_answers(result, questions):
+        """Map Laya's reply onto jevelin Answers, failing loudly on a missing key.
+
+        A missing answer is NOT silently treated as a pass. The pipeline's
+        fail-closed path exists for that, and it only works if this raises.
+        """
+        raw = result.get("answers", result)
+        answers = {}
+        for k, q in questions.items():
+            a = raw[k]
+            if q.type == "noul":
+                answers[k] = Answer("noul", float(a["noul"]))
+            elif q.type == "choice":
+                answers[k] = Answer("choice", a["choice"], dict(a["probabilities"]))
+            else:
+                answers[k] = Answer("score", float(a["score"]))
+        return answers
+
+    # -- transports --------------------------------------------------------
+
+    def _post(self, state, payload):
+        body = {"state": state, "questions": payload}
+        if self.api_key:                       # hosted endpoints want the model named
+            body["model"] = self.model_name
+        req = urllib.request.Request(
+            self.base_url.rstrip("/") + "/systemone",
+            data=json.dumps(body).encode(),
+            headers={"content-type": "application/json"},
+            method="POST",
+        )
+        if self.api_key:
+            req.add_header("authorization", "Bearer " + self.api_key)
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            return json.loads(resp.read().decode())
+
+    def _local(self, state, payload):
+        return self.router.predict(state, payload)
+
+    # -- the interface -----------------------------------------------------
+
+    async def classify(self, clock, state, questions, key):
+        payload = self.as_payload(questions)
+        call = self._post if self.base_url else self._local
+        t0 = time.perf_counter()
+        # Both transports are synchronous. Running them on the event loop would
+        # stall every other turn in flight, so they go to a worker thread.
+        result = await asyncio.to_thread(call, state, payload)
+        clock.charge((time.perf_counter() - t0) * 1000.0)
+        answers = self.read_answers(result, questions)
+        usage = (result.get("usage") or {}).get("input_tokens")
+        tokens = usage or est_tokens(state) + sum(q.tokens for q in questions.values())
+        return answers, [Usage(self.model, tokens)]
+
+
+def _first_env(names):
+    for n in names:
+        v = os.environ.get(n)
+        if v:
+            return v
+    return None
 
 
 class MockLLMJudge:
