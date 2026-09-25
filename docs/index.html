@@ -257,6 +257,13 @@ footer { font-size: 13px; color: var(--ink-3); display: flex; flex-wrap: wrap; g
     <p class="eyebrow" id="controls-h">Assumptions: drag to change them</p>
     <div class="controls" id="controls"></div>
     <div class="controls-foot">
+      <label for="pack">Business</label>
+      <select id="pack">
+        <option value="support" selected>Support &mdash; broadband and mobile</option>
+        <option value="trading">Trading &mdash; retail brokerage</option>
+        <option value="__file">Load a pack file&hellip;</option>
+      </select>
+      <input type="file" id="pack-file" accept=".json,application/json" hidden>
       <label for="calls">Simulated calls</label>
       <select id="calls">
         <option value="100">100</option>
@@ -438,14 +445,31 @@ const worker = new Worker("worker.js");
 let latest = 0, booted = false, data = null;
 const sel = { call: 0, turn: 0, chip: null };
 
+let packLabel = "support", packChoice = "support";
+
 worker.onmessage = (e) => {
   const m = e.data;
   if (m.type === "ready") { booted = true; run(); return; }
-  if (m.type === "error") { setStatus("error", "Something went wrong: " + m.message); return; }
+  if (m.type === "error") {
+    // A rejected pack leaves the previous one running, so put the menu back.
+    if (m.kind === "setpack") {
+      $("pack").value = packChoice;
+      setStatus("error", "That pack was not usable: " + m.message.split("\n").pop());
+    } else {
+      setStatus("error", "Something went wrong: " + m.message);
+    }
+    return;
+  }
+  if (m.type === "packed") {
+    packLabel = m.name;
+    sel.picked = false; sel.call = 0; sel.turn = 0; sel.chip = null;
+    run();
+    return;
+  }
   if (m.type === "result" && m.id === latest) {
     data = m.data;
-    setStatus("ok", "Simulated " + data.turns.toLocaleString("en-US") + " caller turns in " +
-      (m.ms / 1000).toFixed(1) + " s, in your browser");
+    setStatus("ok", "Simulated " + data.turns.toLocaleString("en-US") + " caller turns of the " +
+      packLabel + " pack in " + (m.ms / 1000).toFixed(1) + " s, in your browser");
     render(!sel.picked);
   }
 };
@@ -458,6 +482,33 @@ function run() {
   setStatus("busy", "Simulating…");
   worker.postMessage({ type: "run", id: latest, settings: settings() });
 }
+
+/* ---------------- packs: the domain lives in data ---------------- */
+function loadPack(opts, choice) {
+  if (!booted) return;
+  packChoice = choice;
+  latest += 1;
+  setStatus("busy", "Loading pack…");
+  worker.postMessage(Object.assign({ type: "setpack", id: latest }, opts));
+}
+
+$("pack").addEventListener("change", (e) => {
+  const v = e.target.value;
+  if (v === "__file") { $("pack-file").value = ""; $("pack-file").click(); return; }
+  loadPack({ name: v }, v);
+});
+
+// A pack chosen from disk is read in the browser and never uploaded anywhere.
+$("pack-file").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) { $("pack").value = packChoice; return; }
+  try {
+    loadPack({ json: await f.text() }, "__file");
+  } catch (err) {
+    $("pack").value = packChoice;
+    setStatus("error", "Could not read that file: " + (err.message || err));
+  }
+});
 
 /* ---------------- tiles and table ---------------- */
 function render(pickDefault) {
