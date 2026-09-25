@@ -453,8 +453,11 @@ worker.onmessage = (e) => {
   if (m.type === "error") {
     // A rejected pack leaves the previous one running, so put the menu back.
     if (m.kind === "setpack") {
+      // a Python traceback: the useful line is the last non-empty one
+      const lines = String(m.message).split("\n").map(s => s.trim()).filter(Boolean);
       $("pack").value = packChoice;
-      setStatus("error", "That pack was not usable: " + m.message.split("\n").pop());
+      setStatus("error", "That pack was not usable: " +
+        (lines[lines.length - 1] || m.message).slice(0, 200));
     } else {
       setStatus("error", "Something went wrong: " + m.message);
     }
