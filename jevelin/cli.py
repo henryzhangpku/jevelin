@@ -20,7 +20,7 @@ from .executor import LiveExecutor, SimExecutor
 from .pack import Pack
 from .pipelines import Env, dump_ledger, run_call
 from .profile import Profile
-from .report import comparison, gantt, summarize
+from .report import comparison, gantt, summarize, tint
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -71,11 +71,14 @@ def cmd_compare(args):
     base = asyncio.run(_run(env, calls, "baseline"))
     fast = asyncio.run(_run(env, calls, "fast"))
     turns = sum(len(c.turns) for c in calls)
-    print("pack: %s | %d calls, %d caller turns | classifier: %s | seed %d\n"
-          % (env.pack.name, len(calls), turns, args.classifier, args.seed))
+    print(tint("pack: %s | %d calls, %d caller turns | classifier: "
+            % (env.pack.name, len(calls), turns), "dim")
+          + tint(args.classifier, "bold", "cyan")
+          + tint(" | seed %d" % args.seed, "dim") + "\n")
     print(comparison(summarize(base, env.profile), summarize(fast, env.profile), env.profile))
-    print("\nLatencies and prices come from the profile (%s). They are illustrative"
-          "\nuntil replaced with measurements." % Path(_resolve(args.profile, "profiles")).name)
+    print(tint("\nLatencies and prices come from the profile (%s). They are illustrative"
+            "\nuntil replaced with measurements."
+            % Path(_resolve(args.profile, "profiles")).name, "dim"))
     if args.ledger:
         dump_ledger(env.ledger, args.ledger)
         print("decision ledger: %s (%d rows)" % (args.ledger, len(env.ledger)))
@@ -95,7 +98,7 @@ def cmd_trace(args):
         if args.turn is not None and i != args.turn:
             continue
         for p in (["baseline", "fast"] if args.pipeline == "both" else [args.pipeline]):
-            print(gantt(runs[p][i]))
+            print(gantt(runs[p][i], budget_ms=env.profile.budget_ms))
             print()
 
 
@@ -105,7 +108,7 @@ def cmd_live(args):
     print("call %d, fast path, running in real time\n" % call.id)
 
     def show(r):
-        print(gantt(r))
+        print(gantt(r, budget_ms=env.profile.budget_ms))
         print()
     asyncio.run(_run(env, [call], "fast", live=True, on_turn=show))
 
