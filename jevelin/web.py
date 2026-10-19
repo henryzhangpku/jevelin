@@ -30,7 +30,7 @@ def _clean(v):
 
 
 def _kind(name):
-    if name.startswith("jev"):
+    if name.startswith("classifier"):
         return "classifier"
     if name.startswith("tts"):
         return "speech"

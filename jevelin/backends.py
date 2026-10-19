@@ -116,13 +116,20 @@ class MockSystemOne:
         return answers, [Usage(self.model, tokens)]
 
 
-class JevSystemOne:
-    """The real thing: TypeSafe AI's Jev via the official typesafe-sdk. Needs TYPESAFE_API_KEY."""
-    model = "jev"
+class HostedSystemOne:
+    """The real thing: a hosted System One classifier via its client SDK (the `hosted` extra).
+    The key comes from CLASSIFIER_API_KEY and an optional endpoint override from
+    CLASSIFIER_URL. Unset, the SDK falls back to its own defaults.
+    """
+    model = "jev"   # profile key for the System One slot, kept so existing profiles price it
 
     def __init__(self, *_):
-        from typesafe_sdk import AsyncTypeSafeClient
-        self.client = AsyncTypeSafeClient()
+        from typesafe_sdk import AsyncTypeSafeClient   # pip install -e ".[hosted]"
+        try:
+            self.client = AsyncTypeSafeClient(api_key=os.environ.get("CLASSIFIER_API_KEY") or None,
+                                              base_url=os.environ.get("CLASSIFIER_URL") or None)
+        except Exception as e:
+            raise SystemExit("--classifier hosted needs CLASSIFIER_API_KEY (%s)" % e)
 
     async def classify(self, clock, state, questions, key):
         from typesafe_sdk import Choice, Noul, Score
@@ -150,14 +157,14 @@ class JevSystemOne:
 class LayaSystemOne:
     """Laya: an Apache-2.0 System One classifier, run locally or behind HTTP.
 
-    Same architectural slot as Jev, so it reports under the `jev` model key and
+    Same architectural slot as the hosted classifier, so it reports under the `jev` model key and
     every existing profile and pack works unchanged. Three ways to run it, and
     the point of supporting all three is that the *architecture* here does not
     depend on a vendor:
 
         local      pip install laya           -> in-process, your hardware
         self-host  laya-serve                 -> LAYA_BASE_URL=http://host:8000/v1
-        hosted     api.impossibl.com          -> LAYA_BASE_URL + LAYA_API_KEY
+        hosted     your provider's endpoint   -> LAYA_BASE_URL + LAYA_API_KEY
 
     No API key is ever read from a file or committed. It comes from the
     environment, and only when you point this at an endpoint that needs one.
@@ -189,7 +196,7 @@ class LayaSystemOne:
                 raise SystemExit(
                     "--classifier laya needs either the `laya` package "
                     "(pip install laya) for local inference, or LAYA_BASE_URL "
-                    "pointing at a laya-serve / api.impossibl.com endpoint."
+                    "pointing at a laya-serve or hosted endpoint."
                 )
             self.router = Router(preload=True)
 

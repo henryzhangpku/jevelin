@@ -10,9 +10,9 @@ draft reply safe to say?* Most stacks send each one to an LLM, which puts them i
 the latency budget and the token bill of every turn.
 
 `jevelin` is a working reference design for the other approach: take those decisions
-**off the critical path**. It answers them with a **System One classifier** such as
-[Jev](https://www.langchain.com/blog/building-a-harness-with-jev) from TypeSafe AI,
-which returns typed, calibrated probabilities (no text) in a few hundred milliseconds.
+**off the critical path**. It answers them with a **System One classifier**: a fast
+text classifier that returns typed, calibrated probabilities (no text) in a few hundred
+milliseconds.
 The classifier runs alongside the conversation instead of in front of it, and every turn
 is scheduled as a dependency graph, so time to first audio is simply its critical path.
 
@@ -57,12 +57,14 @@ The [browser demo](https://henryzhangpku.github.io/jevelin/) runs this same Pyth
 in the page through Pyodide, so you can move the latency and speculation settings and
 watch the timeline and cost change.
 
-With Jev access, the same pipeline runs every classifier stage against the real API:
+With access to a hosted System One classifier, the same pipeline runs every
+classifier stage against the real API:
 
 ```bash
-pip install typesafe-sdk
-export TYPESAFE_API_KEY=...                  # https://console.typesafe.ai/keys
-python -m jevelin compare --classifier jev --calls 20
+pip install -e ".[hosted]"                   # the hosted classifier's client SDK
+export CLASSIFIER_API_KEY=...                # from your classifier provider
+export CLASSIFIER_URL=...                    # optional: override the client's endpoint
+python -m jevelin compare --classifier hosted --calls 20
 ```
 
 ### The classifier is an interface, not a vendor
@@ -91,8 +93,8 @@ python -m jevelin compare --classifier laya --calls 20
 **A hosted endpoint**, when you would rather not run a GPU:
 
 ```bash
-export LAYA_BASE_URL=https://api.impossibl.com/v1
-export LAYA_API_KEY=...                      # or IMPOSSIBL_API_KEY
+export LAYA_BASE_URL=https://<your-endpoint>/v1
+export LAYA_API_KEY=...
 python -m jevelin compare --classifier laya --calls 20
 ```
 
@@ -100,14 +102,14 @@ The key is read from the environment and never from a file, so nothing secret
 belongs in this repository or in a pack.
 
 **On the cost line when you self-host.** Laya usage is priced with the profile's
-`jev` rate, which keeps every existing profile working. That is right for a
+System One rate (the `jev` key), which keeps every existing profile working. That is right for a
 hosted endpoint and deliberately conservative for a local one, where the
 marginal price per token is zero and the real cost is the card. If you run it
 yourself, set `price_per_m.jev` to `0` or to your amortised GPU rate rather than
 reading the cost card literally.
 
 **On the published benchmarks.** Laya reports roughly 33 ms for a single
-question locally against 236–276 ms for a hosted Jev call. Those figures compare
+question locally against 236–276 ms for a hosted classifier call. Those figures compare
 *deployment models*, not models: the second includes a network round trip and
 queueing that the first does not. A fair comparison runs both the same way,
 which is one reason all three transports are wired here. Measure your own, then
@@ -122,8 +124,8 @@ the turn, then generate the reply with a large model.
 
 ```mermaid
 flowchart LR
-  ASR[Streaming ASR] -->|partial transcript, caller still talking| P[Jev: partial]
-  ASR -->|final transcript| F[Jev: final]
+  ASR[Streaming ASR] -->|partial transcript, caller still talking| P[Classifier: partial]
+  ASR -->|final transcript| F[Classifier: final]
   P -->|caution only| E[Early protective action]
   P -->|confident guess| S[Speculative generation]
   F --> R[Rules + router]
@@ -132,14 +134,14 @@ flowchart LR
   R -->|complex or unsure| LG[Large LLM]
   R -->|protective| SC
   S -.->|reused if the guess held| G
-  SM --> G[Jev: output guard]
+  SM --> G[Classifier: output guard]
   LG --> G
   G -->|pass| TTS[Speech]
   G -->|block| SC
   SC --> TTS
 ```
 
-1. **Classify while the caller is still talking.** Jev reads the partial transcript
+1. **Classify while the caller is still talking.** The classifier reads the partial transcript
    before the turn ends, and it answers all its questions in one call.
 2. **Script the routine turns.** Balance, due date, outage, password reset: these get
    pre-approved scripts with no LLM call at all. In the support pack that's two thirds
@@ -158,11 +160,11 @@ FAST  turn 5  [complex]  "I was charged twice this month and I don't understand 
     the bill?"
                           -3000     -2500     -2000     -1500     -1000     -500      0         +500      +1000  ms
 caller speaking           ............................................................|
-jev · partial                      ########                                           |
+classifier · partial               ########                                           |
 large_llm · speculative                                                               | ######
-jev · final                                                                           | #########
+classifier · final                                                                    | #########
 policy                                                                                |          #
-jev · guard                                                                           |          ######
+classifier · guard                                                                    |          ######
 tts                                                                                   |                ###
                           -> reply: complex turn | first audio at 1,010 ms
 ```
@@ -237,7 +239,7 @@ python -m jevelin compare --pack path/to/your_pack.json --profile path/to/measur
 |---|---|
 | Pipeline logic, routing, rules, guard, fail-closed behavior | Real code, covered by tests |
 | Critical-path timing | Real. The simulator agrees with a live concurrent run (tested) |
-| Jev classifier | Real with `--classifier jev`, otherwise simulated with the same interface |
+| Hosted System One classifier | Real with `--classifier hosted`, otherwise simulated with the same interface |
 | Classifier answers in simulation | Pattern-matched stand-ins. They show the pipeline, not model accuracy |
 | LLM judge, reply generation, TTS | Simulated with latencies and prices from the profile |
 | Latency and price numbers | Illustrative defaults until you replace them with measurements |
@@ -253,7 +255,7 @@ jevelin/
   executor.py   stage graph: simulated critical path or live concurrency, same pipeline
   pipelines.py  baseline and fast path, one caller turn each
   policy.py     rules, routing and fail-closed decisions; the caution-only invariant
-  backends.py   Jev (real), simulated classifier, LLM judge, LLM, TTS
+  backends.py   hosted classifier (real), Laya, simulated classifier, LLM judge, LLM, TTS
   report.py     comparison table and per-turn timelines
 docs/           the browser demo (runs the engine above through Pyodide)
 packs/          domains as data

@@ -124,10 +124,10 @@ class Transport(unittest.TestCase):
         real = backends.urllib.request.urlopen
         backends.urllib.request.urlopen = fake_urlopen
         try:
-            keyed = bare(base_url="https://api.impossibl.com/v1", api_key="test-key-not-real")
+            keyed = bare(base_url="https://classifier.example/v1", api_key="test-key-not-real")
             with self.assertRaises(RuntimeError):
                 keyed._post("hello", {})
-            self.assertEqual(sent["url"], "https://api.impossibl.com/v1/systemone")
+            self.assertEqual(sent["url"], "https://classifier.example/v1/systemone")
             self.assertIn("convaiinnovations/laya", sent["body"])
             self.assertEqual(sent["headers"].get("Authorization"), "Bearer test-key-not-real")
 

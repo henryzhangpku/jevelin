@@ -132,9 +132,9 @@ async def fast_turn(ex, env, call, i, turn, history):
     state = context(history, turn.text)
 
     # Both classifier passes are in flight before the turn is even over.
-    pj = ex.spawn("jev · partial", _classify(env.system_one, partial_state, pack.inbound, key + "p"),
+    pj = ex.spawn("classifier · partial", _classify(env.system_one, partial_state, pack.inbound, key + "p"),
                   at=T.partial_at, timeout=to["jev_inbound"])
-    fj = ex.spawn("jev · final", _classify(env.system_one, state, pack.inbound, key + "f"),
+    fj = ex.spawn("classifier · final", _classify(env.system_one, state, pack.inbound, key + "f"),
                   at=T.asr_final, timeout=to["jev_inbound"])
 
     p_ans = await pj.get()
@@ -175,7 +175,7 @@ async def fast_turn(ex, env, call, i, turn, history):
                 spec.discard()
             gen = ex.spawn(dec.tier, _reply(env, dec.tier, state, key), after=[pol])
         draft, risky = await gen.get()
-        guard = ex.spawn("jev · guard", _classify(env.system_one, draft, pack.guard, key + "g"),
+        guard = ex.spawn("classifier · guard", _classify(env.system_one, draft, pack.guard, key + "g"),
                          after=[gen, pol], timeout=to["jev_guard"])
         g = await guard.get()
         _log(env, "fast", call, i, guard, draft, pack.guard)

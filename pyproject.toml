@@ -8,7 +8,8 @@ license = { text = "MIT" }
 dependencies = []
 
 [project.optional-dependencies]
-jev = ["typesafe-sdk>=0.7"]
+hosted = ["typesafe-sdk>=0.7"]
+jev = ["typesafe-sdk>=0.7"]   # alias of `hosted`, kept for existing installs
 
 [project.scripts]
 jevelin = "jevelin.cli:main"

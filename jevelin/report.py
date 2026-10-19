@@ -54,7 +54,7 @@ def tint(text, *styles):
 def _stage_style(name):
     """One colour per kind of work, so a timeline is readable at a glance."""
     n = name.lower()
-    if "jev" in n or "laya" in n or "classifier" in n or "guard" in n:
+    if "laya" in n or "classifier" in n or "guard" in n:
         return ("cyan",)
     if "judge" in n:
         return ("red",)
@@ -78,7 +78,7 @@ def pct(xs, q):
 
 def summarize(results, profile):
     n_calls = len(set(r.call for r in results)) or 1
-    llm_tok = jev_tok = 0
+    llm_tok = s1_tok = 0
     cost = wasted = 0.0
     for r in results:
         for s in r.stages:
@@ -88,7 +88,7 @@ def summarize(results, profile):
                 if s.wasted:
                     wasted += c
                 if u.model == "jev":
-                    jev_tok += u.input + u.output
+                    s1_tok += u.input + u.output
                 else:
                     llm_tok += u.input + u.output
     ttfa = [r.ttfa for r in results]
@@ -101,7 +101,7 @@ def summarize(results, profile):
         "ttfa_p95": pct(ttfa, 0.95),
         "over_budget": sum(1 for t in ttfa if t > profile.budget_ms) / max(len(ttfa), 1),
         "llm_tokens_per_call": llm_tok / n_calls,
-        "jev_tokens_per_call": jev_tok / n_calls,
+        "classifier_tokens_per_call": s1_tok / n_calls,
         "cost_per_call": cost / n_calls,
         "wasted_share": wasted / cost if cost else 0.0,
         "script_share": sum(1 for r in results if r.decision.tier == "script") / max(len(results), 1),
@@ -127,8 +127,8 @@ def comparison(base, fast, profile):
          "%.0f%%" % (100 * fast["over_budget"])),
         ("LLM tokens per call", format(int(base["llm_tokens_per_call"]), ","),
          format(int(fast["llm_tokens_per_call"]), ",")),
-        ("Classifier tokens per call", format(int(base["jev_tokens_per_call"]), ","),
-         format(int(fast["jev_tokens_per_call"]), ",")),
+        ("Classifier tokens per call", format(int(base["classifier_tokens_per_call"]), ","),
+         format(int(fast["classifier_tokens_per_call"]), ",")),
         ("Model cost per call", "$%.4f" % base["cost_per_call"], "$%.4f" % fast["cost_per_call"]),
         ("  of which wasted speculation", "-", "%.1f%%" % (100 * fast["wasted_share"])),
         ("Turns answered by a script", "%.0f%%" % (100 * base["script_share"]),

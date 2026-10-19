@@ -2,7 +2,7 @@
 
 SimExecutor computes each stage's start as max(its anchor time, its
 dependencies' ends), so time-to-first-audio falls out as the critical path.
-Backends that do real I/O (the live Jev client) charge their measured wall
+Backends that do real I/O (the live hosted classifier client) charge their measured wall
 time to the clock, so real latencies slot into the same arithmetic.
 
 LiveExecutor runs the identical stages concurrently in real time.

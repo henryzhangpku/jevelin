@@ -3,7 +3,7 @@
   python -m jevelin compare               # 300 simulated calls, both pipelines
   python -m jevelin trace --call 3        # per-turn timelines for one call
   python -m jevelin live --call 3         # run one call concurrently in real time
-  python -m jevelin compare --classifier jev   # real Jev for every classifier stage
+  python -m jevelin compare --classifier hosted  # hosted classifier for every classifier stage
   python -m jevelin compare --classifier laya  # Laya, local or via LAYA_BASE_URL
 """
 
@@ -14,7 +14,7 @@ import sys
 import textwrap
 from pathlib import Path
 
-from .backends import (JevSystemOne, LayaSystemOne, MockLLM, MockLLMJudge,
+from .backends import (HostedSystemOne, LayaSystemOne, MockLLM, MockLLMJudge,
                        MockSystemOne, MockTTS)
 from .calls import make_calls
 from .executor import LiveExecutor, SimExecutor
@@ -39,10 +39,8 @@ def _resolve(value, folder):
 def build_env(args):
     pack = Pack.load(_resolve(args.pack, "packs"))
     profile = Profile.load(_resolve(args.profile, "profiles"))
-    if args.classifier == "jev":
-        if not os.environ.get("TYPESAFE_API_KEY"):
-            sys.exit("--classifier jev needs TYPESAFE_API_KEY (https://console.typesafe.ai/keys)")
-        system_one = JevSystemOne()
+    if args.classifier in ("hosted", "jev"):   # "jev" kept as an alias for existing scripts
+        system_one = HostedSystemOne()
     elif args.classifier == "laya":
         system_one = LayaSystemOne()
     else:
@@ -313,7 +311,7 @@ def main(argv=None):
         p = sub.add_parser(name)
         p.add_argument("--pack", default="support", help="pack name in packs/ or a path")
         p.add_argument("--profile", default="default", help="profile name in profiles/ or a path")
-        p.add_argument("--classifier", choices=["mock", "jev", "laya"], default="mock")
+        p.add_argument("--classifier", choices=["mock", "hosted", "jev", "laya"], default="mock")
         p.add_argument("--seed", type=int, default=7)
         p.add_argument("--speculate-min", type=float, dest="speculate_min",
                        help="only start speculative generation above this routing confidence (0 = always)")
