@@ -8,7 +8,7 @@
     "vad_ms": 250
   },
   "latency_ms": {
-    "jev": {
+    "classifier": {
       "p50": 300,
       "p95": 480
     },
@@ -34,11 +34,11 @@
     }
   },
   "timeouts_ms": {
-    "jev_inbound": 600,
-    "jev_guard": 500
+    "classifier_inbound": 600,
+    "classifier_guard": 500
   },
   "price_per_m": {
-    "jev": {
+    "classifier": {
       "in": 0.042,
       "out": 0.0
     },

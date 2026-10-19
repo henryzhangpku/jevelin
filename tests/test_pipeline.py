@@ -75,7 +75,7 @@ class Routing(unittest.TestCase):
     def test_routine_turn_is_scripted_and_uses_no_llm(self):
         r = turn(fast_turn, "What are your hours?")
         self.assertEqual(r.decision.action, "hours")
-        llm = [u for s in r.stages if not s.wasted for u in s.usage if u.model != "jev"]
+        llm = [u for s in r.stages if not s.wasted for u in s.usage if u.model != "classifier"]
         self.assertEqual(llm, [])
 
     def test_ambiguous_turn_goes_to_the_large_model(self):
@@ -86,7 +86,7 @@ class Routing(unittest.TestCase):
 
 class Safety(unittest.TestCase):
     def test_classifier_timeout_fails_closed(self):
-        slow = env(profile=profile_with(jev=5000))
+        slow = env(profile=profile_with(classifier=5000))
         r = turn(fast_turn, "Can I change the email on my account?", e=slow)
         self.assertEqual(r.decision.kind, "fail_closed")
         self.assertEqual(r.decision.action, "hold")
@@ -101,7 +101,7 @@ class Safety(unittest.TestCase):
         rules = [{"if_action": "*", "if_context": "account_frozen", "then": "hold",
                   "why": "account frozen"}] + PACK.raw["rules"]
         pack = Pack(dict(PACK.raw, rules=rules))
-        slow = env(pack=pack, profile=profile_with(jev=5000))
+        slow = env(pack=pack, profile=profile_with(classifier=5000))
         r = turn(fast_turn, "What are your hours?", ctx={"account_frozen": True}, e=slow)
         self.assertEqual(r.decision.kind, "rule")
         self.assertEqual(r.decision.why, "account frozen")
@@ -181,3 +181,17 @@ class LiveMatchesSim(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LegacyProfileKey(unittest.TestCase):
+    def test_old_jev_keys_load_as_classifier(self):
+        raw = copy.deepcopy(PROFILE.raw)
+        raw["latency_ms"]["jev"] = raw["latency_ms"].pop("classifier")
+        raw["price_per_m"]["jev"] = raw["price_per_m"].pop("classifier")
+        raw["timeouts_ms"]["jev_inbound"] = raw["timeouts_ms"].pop("classifier_inbound")
+        raw["timeouts_ms"]["jev_guard"] = raw["timeouts_ms"].pop("classifier_guard")
+        p = Profile(raw)
+        self.assertIn("classifier", p.latency)
+        self.assertNotIn("jev", p.prices)
+        self.assertEqual(p.prices["classifier"], PROFILE.prices["classifier"])
+        self.assertEqual(p.timeouts, PROFILE.timeouts)

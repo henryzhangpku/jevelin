@@ -87,7 +87,7 @@ def summarize(results, profile):
                 cost += c
                 if s.wasted:
                     wasted += c
-                if u.model == "jev":
+                if u.model == "classifier":
                     s1_tok += u.input + u.output
                 else:
                     llm_tok += u.input + u.output

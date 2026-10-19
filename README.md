@@ -102,10 +102,10 @@ The key is read from the environment and never from a file, so nothing secret
 belongs in this repository or in a pack.
 
 **On the cost line when you self-host.** Laya usage is priced with the profile's
-System One rate (the `jev` key), which keeps every existing profile working. That is right for a
+System One rate (the `classifier` key), which keeps every existing profile working. That is right for a
 hosted endpoint and deliberately conservative for a local one, where the
 marginal price per token is zero and the real cost is the card. If you run it
-yourself, set `price_per_m.jev` to `0` or to your amortised GPU rate rather than
+yourself, set `price_per_m.classifier` to `0` or to your amortised GPU rate rather than
 reading the cost card literally.
 
 **On the published benchmarks.** Laya reports roughly 33 ms for a single

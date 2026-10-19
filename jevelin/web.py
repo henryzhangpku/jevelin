@@ -16,7 +16,7 @@ from .profile import Profile
 from .report import summarize
 
 DETAIL_CALLS = 40          # calls whose per-stage timelines are sent to the page
-TAIL = {"jev": 1.6, "llm_judge": 1.75, "small_llm": 1.83, "large_llm": 2.0}
+TAIL = {"classifier": 1.6, "llm_judge": 1.75, "small_llm": 1.83, "large_llm": 2.0}
 
 
 def _clean(v):
@@ -68,8 +68,8 @@ def apply_settings(pack_raw, profile_raw, s):
         if key in s:
             lat[key] = {"p50": float(s[key]), "p95": float(s[key]) * tail}
     if "timeout" in s:
-        profile_raw["timeouts_ms"]["jev_inbound"] = float(s["timeout"])
-        profile_raw["timeouts_ms"]["jev_guard"] = float(s["timeout"])
+        profile_raw["timeouts_ms"]["classifier_inbound"] = float(s["timeout"])
+        profile_raw["timeouts_ms"]["classifier_guard"] = float(s["timeout"])
     if "speculate_min" in s:
         pack_raw["route"]["speculate_min_confidence"] = float(s["speculate_min"])
     if "confidence_floor" in s:

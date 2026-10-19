@@ -190,7 +190,7 @@ class Transport(unittest.TestCase):
         self.assertEqual(len(ticks), 5, "the event loop was blocked by the transport")
         self.assertAlmostEqual(answers["n"].value, 0.9)
         self.assertGreater(clock.ms, 0.0, "real elapsed time must be charged to the clock")
-        self.assertEqual(usage[0].model, "jev", "same slot, so existing profiles price it")
+        self.assertEqual(usage[0].model, "classifier", "same slot, so existing profiles price it")
         self.assertGreater(usage[0].input, 0)
 
 

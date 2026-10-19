@@ -39,7 +39,7 @@ def _resolve(value, folder):
 def build_env(args):
     pack = Pack.load(_resolve(args.pack, "packs"))
     profile = Profile.load(_resolve(args.profile, "profiles"))
-    if args.classifier in ("hosted", "jev"):   # "jev" kept as an alias for existing scripts
+    if args.classifier == "hosted":
         system_one = HostedSystemOne()
     elif args.classifier == "laya":
         system_one = LayaSystemOne()
@@ -311,7 +311,7 @@ def main(argv=None):
         p = sub.add_parser(name)
         p.add_argument("--pack", default="support", help="pack name in packs/ or a path")
         p.add_argument("--profile", default="default", help="profile name in profiles/ or a path")
-        p.add_argument("--classifier", choices=["mock", "hosted", "jev", "laya"], default="mock")
+        p.add_argument("--classifier", choices=["mock", "hosted", "laya"], default="mock")
         p.add_argument("--seed", type=int, default=7)
         p.add_argument("--speculate-min", type=float, dest="speculate_min",
                        help="only start speculative generation above this routing confidence (0 = always)")

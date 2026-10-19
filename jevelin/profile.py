@@ -18,8 +18,19 @@ class LatencyModel:
         return rng.lognormvariate(math.log(self.p50), sigma)
 
 
+def _upgrade(data):
+    """Silent alias: old profiles keyed the classifier slot `jev`; map it to `classifier`."""
+    data = dict(data)
+    for section in ("latency_ms", "price_per_m", "timeouts_ms"):
+        old = data.get(section, {})
+        data[section] = {("classifier" + k[3:] if k == "jev" or k.startswith("jev_") else k): v
+                         for k, v in old.items()}
+    return data
+
+
 class Profile:
     def __init__(self, data):
+        data = _upgrade(data)
         self.raw = data
         self.speech = data["speech"]
         self.latency = {k: LatencyModel(v["p50"], v["p95"]) for k, v in data["latency_ms"].items()}

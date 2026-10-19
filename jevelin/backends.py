@@ -103,14 +103,14 @@ def mock_answer(q, state):
 
 class MockSystemOne:
     """Simulated System One classifier: one call answers every question, same answer every time."""
-    model = "jev"
+    model = "classifier"
 
     def __init__(self, profile, seed):
-        self.lat = profile.latency["jev"]
+        self.lat = profile.latency["classifier"]
         self.seed = seed
 
     async def classify(self, clock, state, questions, key):
-        await clock.sleep(self.lat.sample(keyed_rng(self.seed, key, self.model)))
+        await clock.sleep(self.lat.sample(keyed_rng(self.seed, key, "jev")))   # stream label kept so published numbers reproduce
         answers = dict((k, mock_answer(q, state)) for k, q in questions.items())
         tokens = est_tokens(state) + sum(q.tokens for q in questions.values())
         return answers, [Usage(self.model, tokens)]
@@ -129,7 +129,7 @@ class HostedSystemOne:
     The key comes from CLASSIFIER_API_KEY and an optional endpoint override from
     CLASSIFIER_URL. Unset, the SDK falls back to its own defaults.
     """
-    model = "jev"   # profile key for the System One slot, kept so existing profiles price it
+    model = "classifier"   # profile key for the System One slot, kept so existing profiles price it
 
     def __init__(self, *_):
         from typesafe_sdk import AsyncTypeSafeClient   # pip install -e ".[hosted]"
@@ -165,7 +165,7 @@ class HostedSystemOne:
 class LayaSystemOne:
     """Laya: an Apache-2.0 System One classifier, run locally or behind HTTP.
 
-    Same architectural slot as the hosted classifier, so it reports under the `jev` model key and
+    Same architectural slot as the hosted classifier, so it reports under the `classifier` model key and
     every existing profile and pack works unchanged. Three ways to run it, and
     the point of supporting all three is that the *architecture* here does not
     depend on a vendor:
@@ -177,14 +177,14 @@ class LayaSystemOne:
     No API key is ever read from a file or committed. It comes from the
     environment, and only when you point this at an endpoint that needs one.
 
-    On cost: usage is priced with the profile's `jev` rate, which is right for a
+    On cost: usage is priced with the profile's `classifier` rate, which is right for a
     hosted endpoint and *conservative* for a self-hosted one. If you run it on
     your own GPU the marginal per-token price is zero and the real cost is the
-    card, so set `price_per_m.jev` to 0 (or to your amortised rate) in your
+    card, so set `price_per_m.classifier` to 0 (or to your amortised rate) in your
     profile rather than reading the cost card literally.
     """
 
-    model = "jev"
+    model = "classifier"
 
     #: env var names, in the order they are consulted
     URL_ENV = ("LAYA_BASE_URL", "IMPOSSIBL_BASE_URL")
