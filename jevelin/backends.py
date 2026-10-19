@@ -116,6 +116,14 @@ class MockSystemOne:
         return answers, [Usage(self.model, tokens)]
 
 
+def classifier_credentials():
+    """(key, url) from CLASSIFIER_API_KEY and CLASSIFIER_URL. The pre-rename
+    names are read only as a fallback; removed after one release."""
+    key = os.environ.get("CLASSIFIER_API_KEY") or os.environ.get("TYPESAFE_API_KEY") or None
+    url = os.environ.get("CLASSIFIER_URL") or os.environ.get("TYPESAFE_BASE_URL") or None
+    return key, url
+
+
 class HostedSystemOne:
     """The real thing: a hosted System One classifier via its client SDK (the `hosted` extra).
     The key comes from CLASSIFIER_API_KEY and an optional endpoint override from
@@ -126,8 +134,8 @@ class HostedSystemOne:
     def __init__(self, *_):
         from typesafe_sdk import AsyncTypeSafeClient   # pip install -e ".[hosted]"
         try:
-            self.client = AsyncTypeSafeClient(api_key=os.environ.get("CLASSIFIER_API_KEY") or None,
-                                              base_url=os.environ.get("CLASSIFIER_URL") or None)
+            key, url = classifier_credentials()
+            self.client = AsyncTypeSafeClient(api_key=key, base_url=url)
         except Exception as e:
             raise SystemExit("--classifier hosted needs CLASSIFIER_API_KEY (%s)" % e)
 
